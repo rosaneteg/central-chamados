@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central de Chamados TechLog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: barra do squad no topo, fila de chamados em grade; dentro do chamado, trilha de 4 etapas e um painel de trabalho grande, legível no projetor. Um único tema claro, nas cores azul e laranja da instituição. */
+:root{
+  --blue:#004A8D; --blue-2:#0B5FAE; --orange:#F7941D; --orange-soft:#FEF0DF;
+  --ink:#16243A; --muted:#5A6577; --paper:#F4F7FB; --card:#FFFFFF; --line:#D5DEEA;
+  --ok:#1E8A4C; --ok-soft:#E3F4EA; --bad:#C2321F; --bad-soft:#FBE6E2;
+  --display:"Archivo", "Arial Black", Arial, sans-serif;
+  --body:"Atkinson Hyperlegible", Arial, sans-serif;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.45}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;line-height:1.15}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,.part:focus-visible{outline:3px solid var(--orange);outline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+
+header.top{background:var(--blue);color:#fff}
+header.top .wrap{display:flex;align-items:center;gap:20px;padding-top:14px;padding-bottom:14px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column}
+.brand small{font-family:var(--display);font-weight:800;letter-spacing:.12em;font-size:12px;color:#FFD9A8}
+.brand b{font-family:var(--display);font-size:24px;font-weight:800}
+#topright{display:flex;gap:12px;margin-left:auto;flex-wrap:wrap;align-items:center}
+.squads span.lbl{font-size:14px;opacity:.85;margin-right:4px}
+.chip{border:2px solid rgba(255,255,255,.5);background:transparent;color:#fff;border-radius:999px;padding:6px 14px;font-weight:700;display:flex;gap:8px;align-items:center}
+.chip .c{font-variant-numeric:tabular-nums;background:rgba(255,255,255,.18);border-radius:999px;padding:0 8px;font-size:15px}
+.chip[aria-pressed="true"]{background:var(--orange);border-color:var(--orange);color:#1b1206}
+.chip[aria-pressed="true"] .c{background:rgba(0,0,0,.12)}
+.stripe{height:6px;background:var(--orange)}
+
+main{padding:24px 0 48px}
+.progress{display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:22px}
+.progress b{font-family:var(--display);white-space:nowrap}
+.bar{flex:1;height:18px;background:#E8EEF6;border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--orange),#FFB55C);width:0;transition:width .5s}
+.progress .pct{font-family:var(--display);font-weight:800;color:var(--blue);font-variant-numeric:tabular-nums;min-width:56px;text-align:right}
+
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 12px;flex-wrap:wrap}
+.sec-head h2{font-size:26px;color:var(--blue)}
+.sec-head p{margin:0;color:var(--muted)}
+.queue{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.ticket{background:var(--card);border:1px solid var(--line);border-left:8px solid var(--orange);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;text-align:left;color:inherit;transition:transform .15s, box-shadow .15s}
+.ticket:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,74,141,.12)}
+.ticket .num{font-family:var(--display);font-weight:800;color:var(--blue);font-size:15px;letter-spacing:.06em}
+.ticket h3{font-size:21px}
+.ticket .who{color:var(--muted);font-size:15px}
+.ticket q{font-style:italic}
+.pill{align-self:flex-start;font-size:13px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--orange-soft);color:#8A4B00}
+.ticket.done{border-left-color:var(--ok);opacity:.85}
+.ticket.done .pill{background:var(--ok-soft);color:var(--ok)}
+.ticket.vip{border-left-color:var(--bad);background:linear-gradient(180deg,#fff,#FFF6F3)}
+.ticket.vip .pill{background:var(--bad-soft);color:var(--bad)}
+.foot-tools{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px;align-items:center;color:var(--muted);font-size:15px}
+.linkbtn{background:none;border:none;color:var(--blue);text-decoration:underline;padding:0}
+
+/* run */
+.run-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.back{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;color:var(--blue);font-weight:700}
+.run-head h2{font-size:26px;color:var(--blue)}
+.run-head .coins{margin-left:auto;font-family:var(--display);font-weight:800;background:var(--orange-soft);color:#8A4B00;border-radius:999px;padding:6px 16px;font-variant-numeric:tabular-nums}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;list-style:none;padding:0}
+.steps li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:center;font-weight:700;color:var(--muted)}
+.steps li .n{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#E8EEF6;font-family:var(--display);flex:none}
+.steps li.on{border-color:var(--blue);color:var(--blue);box-shadow:inset 0 -4px 0 var(--orange)}
+.steps li.on .n{background:var(--blue);color:#fff}
+.steps li.past .n{background:var(--ok);color:#fff}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+.client{display:flex;gap:16px;align-items:flex-start}
+.avatar{width:72px;height:72px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:26px;flex:none}
+.bubble{background:var(--paper);border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:14px 16px;font-size:20px}
+.bubble .meta{font-size:14px;color:var(--muted);margin-bottom:4px}
+.speak{margin-top:8px;background:none;border:1px solid var(--line);border-radius:8px;padding:4px 10px;color:var(--blue);font-size:15px;display:inline-flex;gap:6px;align-items:center}
+.task{font-family:var(--display);font-size:20px;color:var(--blue);margin:0 0 6px}
+.hint-line{color:var(--muted);margin:0 0 14px}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{text-align:left;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--ink);font-size:18px;display:flex;gap:12px;align-items:flex-start}
+.opt:hover:not(:disabled){border-color:var(--blue-2)}
+.opt .k{font-family:var(--display);font-weight:800;color:var(--orange);min-width:22px}
+.opt.good{border-color:var(--ok);background:var(--ok-soft)}
+.opt.meh{border-color:var(--line);background:#F6F7F9;color:var(--muted)}
+.opt.bad{border-color:var(--bad);background:var(--bad-soft)}
+.opt:disabled{cursor:default}
+.answer{font-size:15px;margin-top:4px;display:block;color:var(--ink)}
+.chat{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.chat .me{align-self:flex-end;background:var(--blue);color:#fff;border-radius:16px 16px 4px 16px;padding:10px 14px;max-width:85%}
+.chat .them{align-self:flex-start;background:var(--paper);border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:10px 14px;max-width:85%}
+.actions{display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px;align-items:center}
+.btn{background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px 22px;font-weight:700;font-size:18px}
+.btn:disabled{background:#A9B6C8;cursor:not-allowed}
+.btn.alt{background:var(--card);color:var(--blue);border:2px solid var(--blue)}
+.btn.orange{background:var(--orange);color:#1b1206}
+.hintbox{background:var(--orange-soft);border-left:6px solid var(--orange);border-radius:8px;padding:12px 14px;margin-top:12px}
+.feedback{border-radius:10px;padding:12px 14px;margin-top:12px;font-weight:700}
+.feedback.good{background:var(--ok-soft);color:var(--ok)}
+.feedback.bad{background:var(--bad-soft);color:var(--bad)}
+.feedback.meh{background:#F1F3F6;color:var(--muted)}
+
+/* PC */
+.pcwrap{overflow-x:auto}
+svg.pc{width:100%;min-width:560px;height:auto;display:block}
+.part{cursor:pointer}
+.part .hit{fill:transparent;stroke:transparent;stroke-width:3;rx:8}
+.part:hover .hit{stroke:var(--orange);fill:rgba(247,148,29,.08)}
+.part.checked-ok .hit{stroke:var(--ok);fill:rgba(30,138,76,.10)}
+.part.checked-bad .hit{stroke:var(--bad);fill:rgba(194,50,31,.14);stroke-width:4}
+.tagtext{font-family:var(--body);font-size:13px;font-weight:700;fill:var(--ink)}
+.log{display:flex;flex-direction:column;gap:8px;max-height:430px;overflow:auto}
+.log .item{border-radius:10px;padding:10px 12px;border:1px solid var(--line)}
+.log .item b{display:block}
+.log .item.ok{background:var(--ok-soft);border-color:#BFE3CD}
+.log .item.bad{background:var(--bad-soft);border-color:#F2C2B8}
+.log .item.warn{background:var(--orange-soft);border-color:#F7CF9E}
+.empty{color:var(--muted);border:2px dashed var(--line);border-radius:10px;padding:16px}
+.found{font-family:var(--display);font-weight:800;color:var(--blue);margin:8px 0 0}
+
+.modal{position:fixed;inset:0;background:rgba(10,25,45,.55);display:grid;place-items:center;padding:16px;z-index:10}
+.modal .box{background:var(--card);border-radius:16px;padding:24px;max-width:520px;width:100%}
+.modal h3{color:var(--blue);font-size:22px;margin-bottom:8px}
+
+.result{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.stars{font-size:46px;color:var(--orange);letter-spacing:6px;line-height:1}
+.score-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.score-table td{padding:8px 0;border-bottom:1px solid var(--line)}
+.score-table td:last-child{text-align:right;font-weight:700}
+.score-table tr.total td{font-family:var(--display);font-weight:800;color:var(--blue);font-size:22px;border-bottom:none}
+.script{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px}
+.script ol{margin:8px 0 0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
+.script li::marker{font-family:var(--display);font-weight:800;color:var(--orange)}
+
+.edit-squads{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.edit-squads input{font:inherit;font-size:16px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;width:150px}
+
+@media (max-width:860px){.grid2,.result{grid-template-columns:1fr}.steps{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.teamtag{display:inline-flex;align-items:center;gap:8px;font-weight:700;background:rgba(255,255,255,.14);border-radius:999px;padding:6px 14px}
+.teamtag i{width:18px;height:18px;border-radius:5px;display:inline-block;box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+.teamtag.dark{background:var(--paper);color:var(--ink)}
+.teamtag.dark i{box-shadow:none}
+.coinbox{display:inline-flex;align-items:center;gap:8px;background:#FFD84D;color:#3A2700;border-radius:999px;padding:5px 14px 5px 8px;font-weight:700}
+.coinbox b{font-family:var(--display);font-size:20px;font-variant-numeric:tabular-nums}
+.welcome{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;margin-top:12px}
+.welcome h1{font-size:46px;color:var(--blue);margin:6px 0 14px}
+.eyebrow{font-family:var(--display);font-weight:800;letter-spacing:.12em;color:var(--orange);margin:0;font-size:15px}
+.lead{font-size:20px;color:var(--muted);margin:0}
+.colors{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.colorbtn{display:flex;flex-direction:column;align-items:center;gap:8px;background:var(--card);border:3px solid var(--line);border-radius:14px;padding:12px 6px;font-weight:700;color:var(--ink)}
+.colorbtn i{width:46px;height:46px;border-radius:8px;display:block;box-shadow:0 4px 10px rgba(0,0,0,.12)}
+.colorbtn[aria-pressed="true"]{border-color:var(--blue);background:#EAF2FB}
+.txt{font:inherit;font-size:18px;width:100%;padding:12px 14px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+.small{font-size:15px;color:var(--muted);margin:10px 0 0}
+.prof-link{text-align:center;margin-top:36px}
+.netinfo{border-radius:10px;padding:10px 14px;margin:0 0 18px;font-size:16px;font-weight:700}
+.netinfo.ok{background:var(--ok-soft);color:var(--ok)}
+.netinfo.warn{background:var(--orange-soft);color:#8A4B00}
+.rules{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-top:24px}
+.rules summary{cursor:pointer;font-family:var(--display);font-weight:800;color:var(--blue);font-size:20px;display:flex;align-items:center;gap:10px}
+.rules .score-table{max-width:620px}
+.score-table td.pos{color:var(--ok)} .score-table td.neg{color:var(--bad)}
+.why{display:block;font-size:14px;color:var(--muted)}
+.rank{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.rank th{background:var(--blue);color:#fff;padding:10px 8px;font-size:15px;text-align:left}
+.rank td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:16px}
+.rank td.pos{font-family:var(--display);font-weight:800;color:var(--orange);font-size:20px}
+.rank .cellc{text-align:center;color:#A9B6C8}
+.rank .cellc.has{color:var(--ink);font-weight:700;background:var(--ok-soft)}
+.rank .c{text-align:center;font-weight:700}
+.rank .tot{font-family:var(--display);font-size:22px;color:var(--blue)}
+.panel .rank{display:table}
+.panel{overflow-x:auto}
+.btn.danger{background:var(--bad)}
+.colorbtn.taken{opacity:.45;cursor:not-allowed}
+.emuso{font-size:13px;font-weight:700;color:var(--muted);background:#EEF2F7;border-radius:999px;padding:2px 8px}
+.emuso.on{color:var(--ok);background:var(--ok-soft)}
+.coresinfo{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.coresinfo:empty{display:none}
+.quem{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.quem li{display:flex;align-items:center;gap:8px;font-size:16px}
+.quem i{width:16px;height:16px;border-radius:4px;display:inline-block}
+.netinfo.bad{background:var(--bad-soft);color:var(--bad)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:860px){.welcome{grid-template-columns:1fr}.colors{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="brand"><small>MISSÃO TECHLOG</small><b>Central de Chamados</b></div>
+  <div id="topright"></div>
+</div></header>
+<div class="stripe"></div>
+<main><div class="wrap" id="app"></div></main>
+<div id="modal"></div>
+<script>
+// =====================================================================
+//  CONFIGURAÇÃO — cole aqui a URL do App da Web da planilha (termina em /exec)
+// =====================================================================
+const CONFIG = {
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwqnMP4-qNpIepnFgd-20CY2b9J9XEYiaHkcrlBO7J3gcHKTBFWwLX2B3gDZVkfWCEbWw/exec"
+};
+// =====================================================================
+
+const EQUIPES = [
+  {id:"Rosa",    cor:"#FF6B9E"},
+  {id:"Verde",   cor:"#3DC47E"},
+  {id:"Amarela", cor:"#FFD84D"},
+  {id:"Azul",    cor:"#45B8F0"},
+  {id:"Laranja", cor:"#F7941D"}
+];
+const REGRAS = [
+  ["Boa pergunta ao cliente","+5 cada"],
+  ["Encontrar o defeito na inspeção","até +20 por defeito"],
+  ["Olhar peças demais sem necessidade","−2 por peça a mais"],
+  ["Abrir a fonte (perigo!)","−10"],
+  ["Conserto certo na 1ª tentativa","+20 (na 2ª: +10)"],
+  ["Explicação clara e educada","+15"],
+  ["Explicação cheia de termos técnicos","+5"],
+  ["Explicação grosseira","−5"]
+];
+
+
+// ---------- dados ----------
+const PARTS = {
+  forca:  {nome:"Cabo de força e tomada", ok:"O cabo está firme na tomada e na fonte."},
+  painel: {nome:"Botão do painel frontal", ok:"Os fios do botão estão ligados nos pinos F_PANEL da placa-mãe."},
+  ram:    {nome:"Memória RAM", ok:"As memórias estão bem encaixadas, com as travas fechadas."},
+  video:  {nome:"Cabo de vídeo", ok:"O monitor está ligado na saída de vídeo correta."},
+  sata:   {nome:"Cabo SATA do HD/SSD", ok:"Os cabos de dados e de energia do HD estão conectados."},
+  cooler: {nome:"Cooler do processador", ok:"O cooler está ligado no conector CPU_FAN."},
+  usb:    {nome:"Teclado e mouse", ok:"Teclado e mouse estão conectados nas portas USB."},
+  fonte:  {nome:"Fonte de alimentação"}
+};
+const BAD = {
+  forca:"O cabo de força está SOLTO da fonte! Por isso nada liga.",
+  ram:"Uma memória está meio solta: uma das travas está aberta!",
+  video:"O monitor está ligado na saída da placa-mãe, mas este PC usa a placa de vídeo!",
+  sata:"O cabo SATA de dados do HD está desconectado!",
+  cooler:"O cabo do cooler não está ligado no conector CPU_FAN!",
+  usb:"O teclado e o mouse estão desconectados das portas USB!"
+};
+const FIX = {
+  forca:["Reconectar o cabo de força na fonte e na tomada","Trocar a placa-mãe","Formatar o computador"],
+  ram:["Desligar, retirar a memória e encaixar de novo até as travas fecharem","Trocar o monitor","Reinstalar o Windows"],
+  video:["Ligar o cabo do monitor na saída da placa de vídeo","Trocar a memória RAM","Aumentar o brilho do monitor"],
+  sata:["Desligar e reconectar o cabo SATA (dados e energia) do HD","Trocar o processador","Comprar um computador novo"],
+  cooler:["Desligar e conectar o cabo do cooler no conector CPU_FAN","Desativar o aviso e continuar usando assim","Trocar o HD"],
+  usb:["Conectar o teclado e o mouse nas portas USB","Trocar a fonte de alimentação","Reinstalar o sistema da clínica"]
+};
+const FIX_FEEDBACK = {
+  wrong:"Essa troca não resolveria o problema e ainda custaria caro para o cliente. Tente de novo!",
+  cooler1:"Perigoso! Sem o cooler o processador esquenta demais e pode queimar."
+};
+const T = [
+ {id:"01",cliente:"Dona Marta",ini:"DM",perfil:"Aposentada, usa o PC para falar com os netos",
+  relato:"Eu aperto o botão e o computador não dá sinal de vida. Nenhuma luz, nenhum barulho.",
+  defeitos:["forca"],
+  perguntas:[["Aparece alguma luz quando a senhora aperta o botão?","Nenhuma luzinha, nada.",1],
+             ["Alguém mexeu no computador ou mudou ele de lugar?","Meu neto passou o aspirador atrás da mesa ontem...",1],
+             ["A senhora tem backup dos seus arquivos?","Back o quê, meu filho?",0],
+             ["Qual é a marca do processador?","Ih, não faço a menor ideia!",0]],
+  dica:"Se NADA liga, nem luz, comece pela energia: tomada, cabo e fonte.",
+  explic:[["O cabo de energia tinha se soltado, provavelmente com o aspirador. Já liguei de volta e está funcionando.","good"],
+          ["A PSU não estava recebendo alimentação AC, então não havia tensão nos trilhos de 12V.","meh"],
+          ["Era só um cabo solto, coisa boba. A senhora devia ter visto isso.","bad"]]},
+ {id:"02",cliente:"Seu Jorge",ini:"SJ",perfil:"Dono de um mercadinho do bairro",
+  relato:"Ele liga, as ventoinhas giram, mas a tela fica preta e ele dá uns bipes.",
+  defeitos:["ram"],
+  perguntas:[["Quantos bipes o computador dá?","Uns bipes compridos, um atrás do outro.",1],
+             ["Alguém abriu o computador recentemente?","Meu sobrinho abriu para limpar semana passada.",1],
+             ["O senhor usa antivírus?","Uso sim, por quê?",0],
+             ["Qual é o sistema operacional?","Sei lá, o que veio nele.",0]],
+  dica:"Bipes compridos e tela preta costumam indicar problema na memória RAM.",
+  explic:[["Uma peça chamada memória tinha saído um pouquinho do lugar na limpeza. Encaixei de novo e ele voltou a funcionar.","good"],
+          ["O POST falhou por causa de um módulo DIMM mal assentado no slot.","meh"],
+          ["Seu sobrinho fez besteira, é melhor não deixar ele mexer mais.","bad"]]},
+ {id:"03",cliente:"Ana",ini:"AN",perfil:"Estudante, precisa entregar um trabalho amanhã",
+  relato:"Liga, mas aparece uma mensagem em inglês dizendo que não encontrou o disco.",
+  defeitos:["sata"],
+  perguntas:[["O que diz a mensagem na tela?","Algo como \"no boot device\"... não entendo muito inglês.",1],
+             ["O computador levou algum tranco ou foi mudado de lugar?","Mudei ele de mesa ontem.",1],
+             ["Você tem conta de e-mail?","Tenho, mas o que isso tem a ver?",0],
+             ["Qual é o tamanho do seu monitor?","Acho que é médio.",0]],
+  dica:"\"Não encontrou o disco\" quer dizer que o computador não está enxergando o HD. Olhe os cabos dele.",
+  explic:[["O cabo que liga o HD, onde ficam seus arquivos, se soltou na mudança. Liguei de novo e seus arquivos estão lá.","good"],
+          ["A BIOS não detectava o dispositivo de boot porque a interface SATA estava desconectada.","meh"],
+          ["Você não deveria ter mexido no computador.","bad"]]},
+ {id:"04",cliente:"Escritório Contábil",ini:"EC",perfil:"Atendimento: Sra. Paula",
+  relato:"O computador parece ligar normal, mas o monitor diz \"sem sinal\".",
+  defeitos:["video"],
+  perguntas:[["O computador tem uma placa de vídeo separada?","Acho que sim, o técnico anterior colocou uma.",1],
+             ["Mexeram nos cabos recentemente?","A equipe de limpeza tirou tudo da mesa ontem.",1],
+             ["Vocês usam impressora?","Usamos, mas ela está funcionando.",0],
+             ["Quantos funcionários tem o escritório?","Somos oito.",0]],
+  dica:"\"Sem sinal\" quer dizer que o monitor não está recebendo imagem. Veja ONDE o cabo do monitor está ligado.",
+  explic:[["O cabo do monitor foi religado no lugar errado depois da limpeza. Coloquei na entrada certa e a imagem voltou.","good"],
+          ["O output de vídeo estava na iGPU, mas a GPU dedicada desabilita a saída onboard.","meh"],
+          ["Quem fez a limpeza não sabe o que está fazendo.","bad"]]},
+ {id:"05",cliente:"Lucas",ini:"LU",perfil:"Usa o PC para estudar e jogar",
+  relato:"Quando liga, aparece um aviso de erro falando do cooler na tela.",
+  defeitos:["cooler"],
+  perguntas:[["O que diz exatamente o aviso?","\"CPU fan error\", e pede para apertar F1.",1],
+             ["Você mexeu dentro do computador?","Troquei o cooler por um com luzinha colorida!",1],
+             ["Qual jogo você mais joga?","Vários, por quê?",0],
+             ["Você usa fone de ouvido?","Uso sim.",0]],
+  dica:"O aviso fala do cooler (fan). Ele foi trocado há pouco tempo. Veja se o cabo dele está no conector certo.",
+  explic:[["Quando você trocou o cooler, o cabo ficou fora do lugar certo. Liguei no conector certo e agora ele refresca o processador direitinho.","good"],
+          ["O header CPU_FAN não detectava RPM, por isso o POST acusava falha.","meh"],
+          ["Da próxima vez não mexa no que você não sabe.","bad"]]},
+ {id:"06",cliente:"Clínica Bem-Estar",ini:"CB",perfil:"Recepção: Sr. Carlos",
+  relato:"Liga tudo certinho, mas o teclado e o mouse não funcionam.",
+  defeitos:["usb"],
+  perguntas:[["O teclado e o mouse acendem alguma luz?","Não, ficam apagadinhos.",1],
+             ["Alguém mudou o computador de lugar?","Mudamos a recepção de lado hoje cedo.",1],
+             ["Qual sistema a clínica usa?","Um sistema de agendamento.",0],
+             ["Que horas a clínica abre?","Às oito.",0]],
+  dica:"Se teclado e mouse não acendem, talvez nem estejam recebendo energia. Veja onde eles se ligam no computador.",
+  explic:[["Na mudança, o teclado e o mouse ficaram desconectados. Liguei de volta e já estão funcionando.","good"],
+          ["Os dispositivos HID não eram enumerados pelo controlador USB.","meh"],
+          ["Vocês precisam tomar mais cuidado na mudança.","bad"]]},
+ {id:"VIP",vip:true,cliente:"Farmácias Saúde Já",ini:"SJ",perfil:"Unidade Centro, computador do caixa",
+  relato:"Nosso computador do caixa parou e a fila está enorme! Primeiro não aparecia nada na tela. Um funcionário mexeu e agora ele apita. Socorro!",
+  defeitos:["video","ram","sata"],
+  perguntas:[["O que aconteceu antes de parar?","Primeiro a tela ficou sem imagem. Aí o funcionário abriu o computador.",1],
+             ["O que o funcionário mexeu lá dentro?","Ele disse que puxou uns cabos e uma \"plaquinha\" para olhar.",1],
+             ["Apareceu alguma mensagem na tela em algum momento?","Uma vez apareceu algo sobre disco, em inglês.",1],
+             ["Qual é o horário de mais movimento?","Na hora do almoço.",0]],
+  dica:"Aqui há TRÊS problemas. Pense: tela sem imagem, uma \"plaquinha\" puxada (que faz apitar) e uma mensagem sobre disco.",
+  explic:[["Encontramos três coisas fora do lugar: o cabo do monitor, uma memória e o cabo do HD. Arrumamos tudo e o caixa já está funcionando.","good"],
+          ["Havia falha de vídeo, de POST por DIMM e de detecção do dispositivo SATA.","meh"],
+          ["O funcionário de vocês estragou tudo.","bad"]]}
+];
+const MAXQ = 2;
+
+
+// ---------- estado local ----------
+const store = { get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}, del(k){try{localStorage.removeItem(k)}catch(e){}} };
+let ME = store.get("techlog-equipe");          // {equipe, integrantes}
+let DONE = store.get("techlog-done") || {};    // chamado -> {coins, pts, fonte}
+let PEND = store.get("techlog-pend") || [];    // envios que ainda não chegaram na planilha
+let ONLINE = null;                              // null = sem planilha configurada
+let R = null, PROF_SENHA = null, timer = null, BLOQ = false;
+let DEV = store.get("techlog-dev"); if(!DEV){ DEV = Math.random().toString(36).slice(2)+Date.now().toString(36); store.set("techlog-dev",DEV); }
+const save = ()=>{ store.set("techlog-done",DONE); store.set("techlog-pend",PEND); };
+const $ = (s,el=document)=>el.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+const equipeCor = id => (EQUIPES.find(e=>e.id===id)||{cor:"#999"}).cor;
+const totalEquipe = ()=>Object.values(DONE).reduce((a,d)=>a+d.coins,0);
+
+
+function speak(text){
+  try{ const u=new SpeechSynthesisUtterance(text); u.lang="pt-BR"; u.rate=.95; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){}
+}
+const speakIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>';
+
+
+// ---------- planilha ----------
+async function apiGet(params){
+  const u = CONFIG.SCRIPT_URL + "?" + new URLSearchParams(params).toString();
+  const r = await fetch(u); return r.json();
+}
+async function apiPost(body){
+  const r = await fetch(CONFIG.SCRIPT_URL,{method:"POST",body:JSON.stringify(body)}); return r.json();
+}
+async function enviarPendentes(){
+  if(!CONFIG.SCRIPT_URL || !PEND.length) return;
+  const resto=[];
+  for(const p of PEND){
+    try{ const r=await apiPost({...p,dispositivo:DEV}); if(r.ok){ BLOQ=false; } else if(r.erro==="ocupada"){ BLOQ=true; } else if(r.erro!=="dados") resto.push(p); ONLINE=true; }
+    catch(e){ resto.push(p); ONLINE=false; }
+  }
+  PEND=resto; save();
+}
+async function sincronizar(){
+  if(!CONFIG.SCRIPT_URL || !ME) return;
+  await enviarPendentes();
+  try{
+    const r = await apiGet({acao:"equipe",equipe:ME.equipe});
+    if(r.ok){
+      ONLINE=true;
+      const novo={};
+      r.resultados.forEach(x=>{ novo[x.chamado]={coins:x.coins,pts:x.pts,fonte:x.fonte}; });
+      PEND.forEach(p=>{ if(!novo[p.chamado]) novo[p.chamado]={coins:p.total,pts:p.pts,fonte:p.fonte}; });
+      DONE=novo; save();
+    }
+  }catch(e){ ONLINE=false; }
+}
+
+// ---------- telas ----------
+function topbar(){
+  const h=$("#topright");
+  if(!ME){ h.innerHTML=""; return; }
+  h.innerHTML = `<span class="teamtag"><i style="background:${equipeCor(ME.equipe)}"></i>Equipe ${esc(ME.equipe)}</span>
+    <span class="coinbox" title="TechCoins são as moedas da empresa TechLog">${coinIcon}<b>${totalEquipe()}</b> TechCoins</span>`;
+}
+const coinIcon = '<svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FFD84D" stroke="#B37A00" stroke-width="1.5"/><path d="M9 9.5h6M12 9.5v6" stroke="#7A5200" stroke-width="2.2" stroke-linecap="round"/></svg>';
+
+function telaEntrada(){
+  R=null; clearInterval(timer); topbar();
+  let escolha=null;
+  $("#app").innerHTML = `
+  <div class="welcome">
+    <div class="wl">
+      <p class="eyebrow">BEM-VINDOS À</p>
+      <h1>Central de Chamados TechLog</h1>
+      <p class="lead">Vocês são a equipe técnica. Atendam os clientes, encontrem os defeitos, consertem e expliquem o que aconteceu. Cada bom atendimento vale <b>TechCoins</b>, as moedas da empresa.</p>
+    </div>
+    <div class="panel wr">
+      <p class="task">1. Qual é a cor da sua equipe?</p>
+      <div class="colors">${EQUIPES.map(e=>`<button class="colorbtn" data-id="${e.id}" aria-pressed="false"><i style="background:${e.cor}"></i>${e.id}</button>`).join("")}</div>
+      <p class="task" style="margin-top:18px">2. Nomes dos integrantes</p>
+      <label for="integ" class="sr">Nomes dos integrantes</label>
+      <input id="integ" class="txt" placeholder="Ex.: Ana e João" maxlength="80">
+      <div class="actions"><button class="btn" id="entrar" disabled>Entrar na central →</button></div>
+      <p class="small" id="avisoEq"></p>
+      <div id="coresInfo" class="coresinfo"></div>
+    </div>
+  </div>
+  <p class="prof-link"><button class="linkbtn" id="prof">Área da professora</button></p>`;
+  const atualizarCores=async()=>{
+    if(!CONFIG.SCRIPT_URL || !$("#coresInfo")) return;
+    try{
+      const r=await apiGet({acao:"cores"}); if(!r.ok || !$("#coresInfo")) return;
+      const quem=r.quem||r.ocupadas.map(id=>({equipe:id,integrantes:""}));
+      document.querySelectorAll(".colorbtn").forEach(b=>{
+        const q=quem.find(x=>x.equipe===b.dataset.id);
+        b.disabled=!!q; b.classList.toggle("taken",!!q);
+        const tag=b.querySelector(".emuso"); if(tag) tag.remove();
+        if(q){ b.insertAdjacentHTML("beforeend",'<span class="emuso">escolhida</span>'); if(escolha===b.dataset.id){ escolha=null; b.setAttribute("aria-pressed","false"); $("#entrar").disabled=true; } }
+      });
+      $("#coresInfo").innerHTML = quem.length
+        ? `<p class="task" style="font-size:17px;margin:0 0 6px">Cores já escolhidas (${quem.length} de 5)</p><ul class="quem">${quem.map(q=>`<li><i style="background:${equipeCor(q.equipe)}"></i><b>${esc(q.equipe)}</b>${q.integrantes?' · '+esc(q.integrantes):''}</li>`).join("")}</ul>`
+        : `<p class="small" style="margin:0">Nenhuma cor escolhida ainda. Vocês são os primeiros!</p>`;
+    }catch(e){}
+  };
+  atualizarCores();
+  clearInterval(timer); timer=setInterval(atualizarCores,4000);
+  document.querySelectorAll(".colorbtn").forEach(b=>b.onclick=()=>{
+    escolha=b.dataset.id; document.querySelectorAll(".colorbtn").forEach(x=>x.setAttribute("aria-pressed",x===b));
+    $("#entrar").disabled=false;
+  });
+  $("#entrar").onclick=async()=>{
+    const integ=$("#integ").value.trim();
+    $("#entrar").disabled=true; $("#entrar").textContent="Entrando...";
+    if(CONFIG.SCRIPT_URL){
+      try{
+        const r=await apiPost({acao:"entrar",equipe:escolha,dispositivo:DEV,integrantes:integ});
+        if(!r.ok){
+          $("#avisoEq").innerHTML = r.erro==="ocupada" ? `<b style="color:var(--bad)">A equipe ${esc(escolha)} já está jogando em outro computador.</b> Escolha a cor da SUA equipe. Se a cor é mesmo de vocês, chame a professora.` : "Não foi possível entrar. Tente de novo.";
+          $("#entrar").textContent="Entrar na central →"; $("#entrar").disabled=!escolha; atualizarCores(); return;
+        }
+      }catch(e){
+        $("#avisoEq").innerHTML = `<b style="color:var(--bad)">Sem conexão com o placar.</b> Confira a internet e tente de novo.`;
+        $("#entrar").textContent="Entrar na central →"; $("#entrar").disabled=false; return;
+      }
+    }
+    ME={equipe:escolha,integrantes:integ}; store.set("techlog-equipe",ME);
+    DONE={}; PEND=[]; save();
+    await sincronizar(); telaFila();
+  };
+  $("#prof").onclick=pedirSenha;
+}
+
+function regrasHTML(){
+  return `<details class="rules" open><summary>${coinIcon} Como ganhar TechCoins?</summary>
+    <p class="small">TechCoins são as moedas da TechLog. A equipe ganha atendendo bem o cliente. Cada chamado só vale TechCoins na <b>primeira vez</b> que é resolvido.</p>
+    <table class="score-table">${REGRAS.map(r=>`<tr><td>${r[0]}</td><td class="${r[1].startsWith('−')?'neg':'pos'}">${r[1]}</td></tr>`).join("")}</table></details>`;
+}
+function statusLine(){
+  if(BLOQ) return `<div class="netinfo bad">A cor ${esc(ME.equipe)} não está reservada para este computador, então os TechCoins não estão sendo contados. Chame a professora.</div>`;
+  if(!CONFIG.SCRIPT_URL) return `<div class="netinfo warn">Modo de teste: o placar online ainda não foi configurado. Os TechCoins ficam só neste computador.</div>`;
+  if(PEND.length) return `<div class="netinfo warn">${PEND.length} resultado(s) esperando internet para chegar à professora. Vamos tentar de novo automaticamente.</div>`;
+  if(ONLINE===false) return `<div class="netinfo warn">Sem conexão com o placar. Pode continuar jogando: enviaremos depois.</div>`;
+  return `<div class="netinfo ok">Conectado: seus resultados chegam direto para a professora.</div>`;
+}
+function telaFila(){
+  R=null; topbar();
+  const n=Object.keys(DONE).length, pct=Math.round(n/T.length*100);
+  $("#app").innerHTML = `
+  <div class="progress"><b>Chamados resolvidos pela equipe ${esc(ME.equipe)}</b><div class="bar"><i style="width:${pct}%"></i></div><span class="pct">${n} de ${T.length}</span></div>
+  ${statusLine()}
+  <div class="sec-head"><h2>Fila de chamados</h2><p>Todas as equipes recebem os mesmos chamados. Regra de ouro: primeiro converse, depois mexa!</p></div>
+  <div class="queue">${T.map(t=>{
+    const d=DONE[t.id];
+    return `<button class="ticket ${t.vip?'vip':''} ${d?'done':''}" data-id="${t.id}">
+      <span class="num">CHAMADO ${t.vip?'VIP':'Nº '+t.id}</span>
+      <h3>${esc(t.cliente)}</h3>
+      <span class="who">${esc(t.perfil)}</span>
+      <q>${esc(t.relato)}</q>
+      <span class="pill">${d?`Resolvido · ${d.coins} TechCoins · jogar de novo para treinar`:(t.vip?'Urgente: 3 problemas':'Aguardando técnico')}</span>
+    </button>`}).join("")}</div>
+  ${regrasHTML()}
+  <div class="foot-tools"><span>Equipe ${esc(ME.equipe)}${ME.integrantes?' · '+esc(ME.integrantes):''}</span><button class="linkbtn" id="trocar">Trocar de equipe (pede a senha da professora)</button></div>`;
+  document.querySelectorAll(".ticket").forEach(b=>b.onclick=()=>start(b.dataset.id));
+  $("#trocar").onclick=()=>pedirSenha("trocar");
+  clearInterval(timer);
+  timer=setInterval(async()=>{ if(R) return; const antes=JSON.stringify(DONE)+PEND.length; await sincronizar(); if(!R && antes!==JSON.stringify(DONE)+PEND.length) telaFila(); },30000);
+}
+
+
+// ---------- chamado ----------
+function start(id){
+  const t=T.find(x=>x.id===id);
+  R={t,treino:!!DONE[id],step:0,asked:[],checks:[],found:[],fonteAberta:false,fixIdx:0,fixTries:0,fixed:[],pts:{perguntas:0,inspecao:0,conserto:0,explicacao:0},explic:null,hint:false};
+  renderRun();
+}
+const total=()=>Object.values(R.pts).reduce((a,b)=>a+b,0);
+function renderRun(){
+  topbar();
+  const labels=["Atender o cliente","Inspecionar o PC","Consertar","Explicar ao cliente"];
+  const steps = R.step<4 ? `<ol class="steps">${labels.map((l,i)=>`<li class="${i===R.step?'on':''} ${i<R.step?'past':''}"><span class="n">${i<R.step?'✓':i+1}</span>${l}</li>`).join("")}</ol>` : "";
+  $("#app").innerHTML = `
+   <div class="run-head"><button class="back" id="back">← Voltar à fila</button>
+     <h2>${R.t.vip?'Chamado VIP':'Chamado Nº '+R.t.id} · ${esc(R.t.cliente)}</h2>
+     <span class="coins" title="TechCoins ganhos neste chamado">${R.treino?'Treino: não vale TechCoins':`Neste chamado: ${total()} TechCoins`}</span></div>
+   ${steps}<div id="stage"></div>`;
+  $("#back").onclick=()=>{ if(R.step<4) modal(`<h3>Sair do chamado?</h3><p>O atendimento deste chamado será perdido.</p><div class="actions"><button class="btn alt" data-close>Continuar atendendo</button><button class="btn" id="leave">Sair</button></div>`,()=>{$("#leave").onclick=()=>{closeModal();telaFila();};}); else telaFila(); };
+  [stepAtender,stepInspecionar,stepConsertar,stepExplicar,stepFim][R.step]();
+}
+async function finish(){
+  R.step=4;
+  if(!R.treino){
+    const tot=total();
+    DONE[R.t.id]={coins:tot,pts:{...R.pts},fonte:R.fonteAberta};
+    const envio={acao:"registrar",equipe:ME.equipe,integrantes:ME.integrantes,chamado:R.t.id,pts:{...R.pts},fonte:R.fonteAberta,total:tot};
+    PEND.push(envio); save();
+    R.envio="enviando";
+    renderRun();
+    if(CONFIG.SCRIPT_URL){ await enviarPendentes(); R.envio = PEND.length?"falhou":"ok"; } else R.envio="local";
+    if(R && R.step===4) renderRun();
+  } else renderRun();
+}
+
+function clientBlock(){
+  return `<div class="client"><div class="avatar" aria-hidden="true">${R.t.ini}</div>
+    <div><div class="bubble"><div class="meta">${esc(R.t.cliente)} · ${esc(R.t.perfil)}</div>“${esc(R.t.relato)}”</div>
+    <button class="speak" id="ouvir">${speakIcon} Ouvir o cliente</button></div></div>`;
+}
+function hintBlock(text){ return R.hint?`<div class="hintbox"><b>Dica:</b> ${esc(text)}</div>`:""; }
+function bindHint(){ const b=$("#dica"); if(b) b.onclick=()=>{R.hint=true;renderRun();}; }
+
+function stepAtender(){
+  const left=MAXQ-R.asked.length;
+  $("#stage").innerHTML = `<div class="panel grid2">
+    <div>${clientBlock()}
+      <div class="chat">${R.asked.map(i=>`<div class="me">${esc(R.t.perguntas[i][0])}</div><div class="them">${esc(R.t.perguntas[i][1])}</div>`).join("")}</div>
+    </div>
+    <div>
+      <p class="task">Faça ${MAXQ} perguntas ao cliente</p>
+      <p class="hint-line">Escolha as perguntas que ajudam a descobrir o problema. Restam <b>${left}</b>.</p>
+      <div class="opts">${R.t.perguntas.map((p,i)=>{const a=R.asked.includes(i);
+        return `<button class="opt ${a?(p[2]?'good':'meh'):''}" data-i="${i}" ${a||left===0?'disabled':''}><span class="k">${String.fromCharCode(65+i)}</span><span>${esc(p[0])}${a?`<span class="answer">${p[2]?'Boa pergunta! +5 TechCoins':'Essa não ajudou a achar o defeito.'}</span>`:''}</span></button>`}).join("")}</div>
+      <div class="actions"><button class="btn" id="next" ${left>0?'disabled':''}>Ir para a inspeção →</button></div>
+    </div></div>`;
+  $("#ouvir").onclick=()=>speak(R.t.relato);
+  document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{const i=+b.dataset.i; R.asked.push(i); if(R.t.perguntas[i][2]) R.pts.perguntas+=5; speak(R.t.perguntas[i][1]); renderRun();});
+  $("#next").onclick=()=>{R.step=1;R.hint=false;renderRun();};
+}
+
+function pcSVG(){
+  const cls=k=>{ if(k==="fonte") return R.checks.includes("fonte")?"checked-ok":""; if(!R.checks.includes(k)) return ""; return R.t.defeitos.includes(k)?"checked-bad":"checked-ok"; };
+  const tag=(x,y,t)=>`<g><rect x="${x}" y="${y}" width="${t.length*7.4+14}" height="22" rx="11" fill="#fff" stroke="#004A8D" stroke-width="1.5"/><text class="tagtext" x="${x+7}" y="${y+15}">${t}</text></g>`;
+  return `<svg class="pc" viewBox="0 0 660 470" role="img" aria-label="Computador para inspecionar: clique em uma parte">
+  <rect x="0" y="0" width="660" height="470" fill="#F4F7FB"/>
+  <!-- monitor -->
+  <rect x="14" y="24" width="96" height="66" rx="6" fill="#16243A"/><rect x="20" y="30" width="84" height="54" fill="#33445E"/><rect x="54" y="90" width="16" height="14" fill="#16243A"/><rect x="40" y="104" width="44" height="6" rx="3" fill="#16243A"/>
+  <!-- tomada -->
+  <rect x="20" y="380" width="46" height="56" rx="6" fill="#fff" stroke="#9AA8BC" stroke-width="2"/><circle cx="36" cy="402" r="4" fill="#5A6577"/><circle cx="50" cy="402" r="4" fill="#5A6577"/><circle cx="43" cy="416" r="3" fill="#5A6577"/>
+  <!-- gabinete -->
+  <rect x="140" y="20" width="430" height="370" rx="12" fill="#DCE3EC" stroke="#9AA8BC" stroke-width="2"/>
+  <rect x="190" y="44" width="300" height="230" rx="6" fill="#2F6B4F"/>
+  <rect x="146" y="50" width="40" height="150" rx="4" fill="#9AA8BC"/>
+  <!-- slots pcie / gpu -->
+  <rect x="200" y="226" width="230" height="30" rx="4" fill="#1D2B40"/><rect x="146" y="218" width="40" height="44" rx="4" fill="#16243A"/>
+  <text x="210" y="246" fill="#fff" font-size="13" font-family="Atkinson Hyperlegible,Arial">PLACA DE VÍDEO</text>
+  <!-- fonte -->
+  <!-- HD bay -->
+  <rect x="505" y="180" width="56" height="110" rx="4" fill="#C9D3DF"/>
+
+  <!-- PARTES CLICÁVEIS -->
+  <g class="part ${cls('video')}" data-part="video" tabindex="0" role="button" aria-label="${PARTS.video.nome}">
+    <path d="${R.t.defeitos.includes("video")&&!R.fixed.includes("video")?'M60 104 C 60 150, 120 110, 152 128':'M60 104 C 60 200, 120 230, 152 240'}" stroke="#004A8D" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <rect x="150" y="120" width="22" height="16" rx="2" fill="#0B5FAE"/><rect x="150" y="232" width="22" height="16" rx="2" fill="#6B7A90"/>
+    <rect class="hit" x="8" y="18" width="172" height="240"/>
+    ${tag(16,122,"Cabo de vídeo")}
+  </g>
+  <g class="part ${cls('usb')}" data-part="usb" tabindex="0" role="button" aria-label="${PARTS.usb.nome}">
+    <rect x="190" y="410" width="190" height="34" rx="6" fill="#33445E"/>${Array.from({length:12},(_,i)=>`<rect x="${198+i*15}" y="418" width="11" height="8" rx="2" fill="#6B7A90"/>`).join("")}${Array.from({length:10},(_,i)=>`<rect x="${206+i*15}" y="430" width="11" height="8" rx="2" fill="#6B7A90"/>`).join("")}
+    <ellipse cx="420" cy="428" rx="16" ry="22" fill="#33445E"/>
+    ${R.t.defeitos.includes("usb")&&!R.fixed.includes("usb")?'':'<path d="M285 410 C 285 380, 160 400, 160 80" stroke="#6B7A90" stroke-width="3" fill="none"/>'}
+    <rect x="152" y="70" width="16" height="10" rx="1" fill="#E8EEF6"/><rect x="152" y="86" width="16" height="10" rx="1" fill="#E8EEF6"/>
+    <rect class="hit" x="182" y="400" width="262" height="60"/>
+    ${tag(450,420,"Teclado e mouse")}
+  </g>
+  <g class="part ${cls('forca')}" data-part="forca" tabindex="0" role="button" aria-label="${PARTS.forca.nome}">
+    <path d="M43 380 C 43 330, 110 360, ${R.t.defeitos.includes("forca")&&!R.fixed.includes("forca")?'128 352':'152 340'}" stroke="#16243A" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <rect class="hit" x="12" y="320" width="146" height="124"/>
+    ${tag(70,440,"Cabo de força")}
+  </g>
+  <g class="part ${cls('fonte')}" data-part="fonte" tabindex="0" role="button" aria-label="${PARTS.fonte.nome}">
+    <rect x="150" y="300" width="170" height="80" rx="6" fill="#5A6577"/><circle cx="235" cy="340" r="28" fill="#46536A"/>${[0,45,90,135].map(a=>`<line x1="235" y1="340" x2="${235+26*Math.cos(a*Math.PI/180)}" y2="${340+26*Math.sin(a*Math.PI/180)}" stroke="#9AA8BC" stroke-width="2"/>`).join("")}
+    <rect class="hit" x="146" y="296" width="178" height="88"/>
+    ${tag(330,328,"Fonte")}
+  </g>
+  <g class="part ${cls('cooler')}" data-part="cooler" tabindex="0" role="button" aria-label="${PARTS.cooler.nome}">
+    <circle cx="290" cy="122" r="46" fill="#1D2B40"/><circle cx="290" cy="122" r="10" fill="#6B7A90"/>
+    ${[0,60,120,180,240,300].map(a=>`<path d="M290 122 Q ${290+30*Math.cos((a+25)*Math.PI/180)} ${122+30*Math.sin((a+25)*Math.PI/180)} ${290+40*Math.cos(a*Math.PI/180)} ${122+40*Math.sin(a*Math.PI/180)}" stroke="#9AA8BC" stroke-width="5" fill="none"/>`).join("")}
+    <path d="M330 140 C 345 160, 360 170, ${R.t.defeitos.includes("cooler")&&!R.fixed.includes("cooler")?'356 196':'372 186'}" stroke="#F7941D" stroke-width="3" fill="none"/>
+    <rect x="366" y="180" width="14" height="10" fill="#fff"/>
+    <rect class="hit" x="238" y="70" width="150" height="128"/>
+    ${tag(232,48,"Cooler do processador")}
+  </g>
+  <g class="part ${cls('ram')}" data-part="ram" tabindex="0" role="button" aria-label="${PARTS.ram.nome}">
+    <rect x="404" y="60" width="14" height="130" rx="2" fill="#0B5FAE"/>
+    <rect x="${R.t.defeitos.includes("ram")&&!R.fixed.includes("ram")?'428':'424'}" y="${R.t.defeitos.includes("ram")&&!R.fixed.includes("ram")?'50':'60'}" width="14" height="130" rx="2" fill="#0B5FAE" ${R.t.defeitos.includes("ram")&&!R.fixed.includes("ram")?'transform="rotate(4 435 120)"':''}/>
+    <rect class="hit" x="396" y="44" width="56" height="154"/>
+    ${tag(458,150,"Memória RAM")}
+  </g>
+  <g class="part ${cls('sata')}" data-part="sata" tabindex="0" role="button" aria-label="${PARTS.sata.nome}">
+    <rect x="512" y="200" width="42" height="72" rx="3" fill="#6B7A90"/><circle cx="533" cy="236" r="12" fill="#9AA8BC"/>
+    <path d="M512 210 C 495 210, 495 ${R.t.defeitos.includes("sata")&&!R.fixed.includes("sata")?'300, 470 300':'200, 484 200'}" stroke="#C2321F" stroke-width="4" fill="none"/>
+    <rect class="hit" x="462" y="190" width="104" height="118"/>
+    ${tag(476,312,"HD e cabo SATA")}
+  </g>
+  <g class="part ${cls('painel')}" data-part="painel" tabindex="0" role="button" aria-label="${PARTS.painel.nome}">
+    <circle cx="560" cy="58" r="12" fill="#fff" stroke="#004A8D" stroke-width="3"/><path d="M560 50 v8 M554 53 a8 8 0 1 0 12 0" stroke="#004A8D" stroke-width="2" fill="none"/>
+    <path d="M548 64 C 520 120, 500 250, 480 262" stroke="#F7941D" stroke-width="2" fill="none" stroke-dasharray="4 3"/>
+    <rect class="hit" x="540" y="38" width="40" height="40"/>
+    ${tag(584,47,"Botão")}
+  </g>
+  </svg>`;
+}
+function stepInspecionar(){
+  const need=R.t.defeitos.length, found=R.found.length;
+  $("#stage").innerHTML = `<div class="panel grid2">
+    <div><p class="task">Clique nas partes para inspecionar</p>
+      <p class="hint-line">Lembre o que o cliente contou: <i>“${esc(R.t.relato)}”</i></p>
+      <div class="pcwrap">${pcSVG()}</div></div>
+    <div><p class="task">Anotações da inspeção</p>
+      <div class="log">${R.checks.length?R.checks.map(k=>{
+        if(k==="fonte") return R.fonteAberta?`<div class="item bad"><b>Abriram a fonte!</b>Nunca abra a fonte: ela guarda energia mesmo desligada e pode dar choque. −10 TechCoins</div>`:`<div class="item warn"><b>Fonte (por fora)</b>${R.t.defeitos.includes("forca")?'A ventoinha da fonte nem gira. Ela não está recebendo energia.':'A ventoinha da fonte gira normalmente.'}</div>`;
+        const bad=R.t.defeitos.includes(k);
+        return `<div class="item ${bad?'bad':'ok'}"><b>${PARTS[k].nome}</b>${bad?BAD[k]:PARTS[k].ok}</div>`}).join(""):'<div class="empty">Nenhuma parte inspecionada ainda. Comece pelo que faz mais sentido com o relato do cliente.</div>'}</div>
+      <p class="found">Problemas encontrados: ${found} de ${need}</p>
+      ${hintBlock(R.t.dica)}
+      <div class="actions">${R.hint?'':'<button class="btn alt" id="dica">Pedir uma dica</button>'}<button class="btn" id="next" ${found<need?'disabled':''}>Ir para o conserto →</button></div>
+    </div></div>`;
+  document.querySelectorAll(".part").forEach(g=>{
+    const go=()=>inspect(g.dataset.part);
+    g.onclick=go; g.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};
+  });
+  bindHint();
+  $("#next").onclick=()=>{
+    const extra=Math.max(0,R.checks.filter(k=>k!=="fonte").length-need-2);
+    R.pts.inspecao+=Math.max(10,20*need-extra*2);
+    R.step=2;R.hint=false;renderRun();
+  };
+}
+function inspect(k){
+  if(k==="fonte"){
+    modal(`<h3>Fonte de alimentação</h3><p>Como você quer verificar a fonte?</p>
+      <div class="opts"><button class="opt" id="fora"><span class="k">A</span><span>Olhar só por fora: a ventoinha gira? o cabo está firme?</span></button>
+      <button class="opt" id="abrir"><span class="k">B</span><span>Abrir a fonte com a chave de fenda para ver por dentro</span></button></div>`,()=>{
+      $("#fora").onclick=()=>{ if(!R.checks.includes("fonte")) R.checks.push("fonte"); closeModal(); renderRun(); };
+      $("#abrir").onclick=()=>{ if(!R.fonteAberta){R.fonteAberta=true;R.pts.inspecao-=10;} if(!R.checks.includes("fonte")) R.checks.push("fonte"); closeModal(); renderRun(); };
+    });
+    return;
+  }
+  if(!R.checks.includes(k)) R.checks.push(k);
+  if(R.t.defeitos.includes(k)&&!R.found.includes(k)) R.found.push(k);
+  renderRun();
+}
+function stepConsertar(){
+  const k=R.t.defeitos[R.fixIdx];
+  if(!R.order){ R.order={}; }
+  if(!R.order[k]){ const a=[0,1,2]; for(let i=2;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} R.order[k]=a; }
+  const fb=R.fb||"";
+  $("#stage").innerHTML = `<div class="panel grid2">
+    <div><p class="task">${R.t.defeitos.length>1?`Problema ${R.fixIdx+1} de ${R.t.defeitos.length}: `:''}${PARTS[k].nome}</p>
+      <div class="item bad" style="border-radius:10px;padding:12px 14px;background:var(--bad-soft);border:1px solid #F2C2B8"><b>O que encontramos:</b> ${BAD[k]}</div>
+      <div class="pcwrap" style="margin-top:12px">${pcSVG()}</div></div>
+    <div><p class="task">O que o técnico deve fazer?</p>
+      <p class="hint-line">Escolha o conserto certo. Lembre: desligue o computador da tomada antes de mexer dentro dele.</p>
+      <div class="opts">${R.order[k].map((oi,pos)=>`<button class="opt" data-oi="${oi}"><span class="k">${String.fromCharCode(65+pos)}</span><span>${esc(FIX[k][oi])}</span></button>`).join("")}</div>
+      ${fb}
+    </div></div>`;
+  document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    const oi=+b.dataset.oi;
+    if(oi===0){
+      R.pts.conserto += R.fixTries===0?20:10; R.fixed.push(k); R.fixTries=0; R.fb="";
+      R.fixIdx++;
+      if(R.fixIdx>=R.t.defeitos.length){ R.step=3; }
+      renderRun();
+      if(R.step===2){ $("#stage").insertAdjacentHTML("afterbegin",`<div class="feedback good" style="margin:0 0 12px">Consertado! Agora o próximo problema.</div>`); }
+    } else {
+      R.fixTries++;
+      R.fb=`<div class="feedback bad">${k==="cooler"&&oi===1?FIX_FEEDBACK.cooler1:FIX_FEEDBACK.wrong}</div>`;
+      renderRun();
+    }
+  });
+}
+function stepExplicar(){
+  if(!R.exOrder){ const a=[0,1,2]; for(let i=2;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} R.exOrder=a; }
+  const ch=R.explic;
+  const reac={good:"Ah, agora eu entendi! Muito obrigado(a), vou indicar vocês para todo mundo!",meh:"Hã? Não entendi nada... mas se está funcionando, tudo bem.",bad:"Nossa, que grosseria. Acho que da próxima vez vou procurar outra assistência."};
+  $("#stage").innerHTML = `<div class="panel grid2">
+    <div>${clientBlock()}
+      <div class="feedback good" style="margin-top:16px">O computador está funcionando de novo!</div>
+      ${ch!==null?`<div class="chat"><div class="me">${esc(R.t.explic[ch][0])}</div><div class="them">${reac[R.t.explic[ch][1]]}</div></div>`:''}
+    </div>
+    <div><p class="task">Como explicar para o cliente?</p>
+      <p class="hint-line">O cliente não é técnico. Escolha a melhor forma de contar o que aconteceu.</p>
+      <div class="opts">${R.exOrder.map((i,pos)=>{const e=R.t.explic[i];const sel=ch===i;return `<button class="opt ${sel?e[1]:''}" data-i="${i}" ${ch!==null?'disabled':''}><span class="k">${String.fromCharCode(65+pos)}</span><span>${esc(e[0])}</span></button>`}).join("")}</div>
+      ${ch!==null?`<div class="feedback ${R.t.explic[ch][1]}">${{good:"Explicação clara e educada! +15 TechCoins",meh:"Correto, mas cheio de termos técnicos. O cliente não entendeu. +5 TechCoins",bad:"Grosseiro! Atendimento ruim afasta clientes. −5 TechCoins"}[R.t.explic[ch][1]]}</div>
+      <div class="actions"><button class="btn orange" id="next">Ver resultado →</button></div>`:''}
+    </div></div>`;
+  $("#ouvir").onclick=()=>speak(R.t.relato);
+  document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{const i=+b.dataset.i;R.explic=i;R.pts.explicacao={good:15,meh:5,bad:-5}[R.t.explic[i][1]];speak(R.t.explic[i][0]);renderRun();});
+  const n=$("#next"); if(n) n.onclick=()=>{finish();};
+}
+
+function stepFim(){
+  const tot=total(), n=R.t.defeitos.length, max=10+20*n+20*n+15;
+  const st=tot>=max*.85?3:tot>=max*.6?2:1;
+  const lc=x=>x.charAt(0).toLowerCase()+x.slice(1);
+  const probs=R.t.defeitos.map(k=>lc(PARTS[k].nome)).join(", ");
+  const fixes=R.t.defeitos.map(k=>lc(FIX[k][0])).join("; ");
+  const env={enviando:"Enviando para a professora...",ok:"✓ Resultado enviado para a professora.",falhou:"Sem internet agora: o resultado será enviado assim que der.",local:"Modo de teste: resultado salvo só neste computador."}[R.envio]||"";
+  const linhas=[
+    ["Perguntas ao cliente",R.pts.perguntas,"+5 por pergunta útil"],
+    ["Inspeção"+(R.fonteAberta?" (abriram a fonte: −10)":""),R.pts.inspecao,"até +20 por defeito encontrado"],
+    ["Conserto",R.pts.conserto,"+20 de primeira, +10 na 2ª tentativa"],
+    ["Explicação ao cliente",R.pts.explicacao,"+15 clara, +5 técnica, −5 grosseira"]
+  ];
+  $("#stage").innerHTML = `<div class="panel result">
+    <div><p class="task">Chamado resolvido!</p>
+      <div class="stars" aria-label="${st} de 3 estrelas">${"★".repeat(st)}<span style="color:#D5DEEA">${"★".repeat(3-st)}</span></div>
+      <table class="score-table" style="margin-top:14px">
+        ${linhas.map(l=>`<tr><td>${l[0]}<span class="why">${l[2]}</span></td><td>${l[1]>0?'+':''}${l[1]} TechCoins</td></tr>`).join("")}
+        <tr class="total"><td>${R.treino?'Treino (não soma)':'Equipe '+esc(ME.equipe)+' ganhou'}</td><td>${tot} TechCoins</td></tr>
+      </table>
+      ${R.treino?'<p class="small">Este chamado já tinha sido resolvido pela equipe. Treinar de novo ajuda a aprender, mas não muda os TechCoins.</p>':`<p class="netinfo ${R.envio==='ok'?'ok':'warn'}">${env}</p>`}
+      <p class="small">Máximo possível neste chamado: ${max} TechCoins.</p></div>
+    <div class="script"><p class="task">Relatório para a gerência</p>
+      <p class="hint-line" style="margin:0">Cada pessoa da equipe fala uma frase:</p>
+      <ol><li><b>O problema era</b> ${esc(probs)}.</li><li><b>O que fizemos foi</b> ${esc(fixes)}.</li><li><b>Uma coisa que aprendi foi...</b> (essa é com vocês!)</li></ol>
+      <div class="actions"><button class="btn" id="home">Voltar à fila de chamados</button></div></div>
+  </div>`;
+  $("#home").onclick=telaFila;
+}
+
+// ---------- professora ----------
+function pedirSenha(motivo){
+  if(!CONFIG.SCRIPT_URL){
+    modal(`<h3>Área da professora</h3><p>O placar online ainda não foi configurado (falta a URL da planilha no arquivo). Sem ele, não há senha para conferir.</p>
+      <div class="actions"><button class="btn alt" data-close>Fechar</button>${motivo==="trocar"?'<button class="btn" id="limpa">Trocar equipe mesmo assim</button>':''}</div>`,()=>{const b=$("#limpa"); if(b) b.onclick=()=>{closeModal();sairEquipe();};});
+    return;
+  }
+  modal(`<h3>${motivo==="trocar"?'Trocar a equipe deste computador':'Área da professora'}</h3>
+    <p>Digite a senha da professora.</p>
+    <form id="fs"><label for="senha" class="sr">Senha</label><input id="senha" type="password" class="txt" autocomplete="off">
+    <p class="small" id="err" style="color:var(--bad)"></p>
+    <div class="actions"><button type="button" class="btn alt" data-close>Cancelar</button><button class="btn" id="ok">Entrar</button></div></form>`,()=>{
+    $("#senha").focus();
+    $("#fs").onsubmit=async(e)=>{ e.preventDefault(); const s=$("#senha").value; $("#ok").disabled=true; $("#ok").textContent="Conferindo...";
+      try{ const r=await apiGet({acao:"painel",senha:s});
+        if(r.ok){ closeModal(); if(motivo==="trocar"){ try{ await apiPost({acao:"liberar",senha:s,equipe:ME.equipe}); }catch(e){} sairEquipe(); } else { PROF_SENHA=s; painel(r.resultados,r.reservas||[]); } }
+        else { $("#err").textContent="Senha incorreta."; $("#ok").disabled=false; $("#ok").textContent="Entrar"; }
+      }catch(err){ $("#err").textContent="Sem conexão com a planilha. Confira a internet."; $("#ok").disabled=false; $("#ok").textContent="Entrar"; }
+    };
+  });
+}
+function sairEquipe(){ ME=null; DONE={}; PEND=[]; store.del("techlog-equipe"); save(); telaEntrada(); }
+
+function painel(res,reservas){
+  reservas=reservas||[];
+  R=null; clearInterval(timer); $("#topright").innerHTML=`<span class="teamtag">Painel da professora</span>`;
+  const porEq=EQUIPES.map(e=>{ const rs=res.filter(r=>r.equipe===e.id); return {...e, rs, total:rs.reduce((a,r)=>a+r.coins,0), integ:(rs.find(r=>r.integrantes)||{}).integrantes||""}; });
+  const rank=[...porEq].sort((a,b)=>b.total-a.total||b.rs.length-a.rs.length);
+  $("#app").innerHTML = `
+  <div class="sec-head"><h2>Painel da professora</h2><p>Atualiza sozinho a cada 20 segundos. Só você vê esta tela.</p></div>
+  <div class="panel">
+    <table class="rank">
+      <tr><th>#</th><th>Equipe</th><th>Computador</th><th>Integrantes</th>${T.map(t=>`<th>${t.vip?'VIP':t.id}</th>`).join("")}<th>Resolvidos</th><th>TechCoins</th></tr>
+      ${rank.map((e,i)=>`<tr><td class="pos">${i+1}º</td><td><span class="teamtag dark"><i style="background:${e.cor}"></i>${e.id}</span></td><td>${reservas.some(x=>x.equipe===e.id)?`<span class="emuso on">em uso</span> <button class="linkbtn lib" data-eq="${e.id}">liberar</button>`:'<span class="emuso">livre</span>'}</td><td>${esc((reservas.find(x=>x.equipe===e.id)||{}).integrantes||e.integ)}</td>
+        ${T.map(t=>{const r=e.rs.find(x=>x.chamado===t.id);return `<td class="cellc ${r?'has':''}">${r?r.coins+(r.fonte?' <span title="Abriram a fonte">⚠</span>':''):'–'}</td>`}).join("")}
+        <td class="c">${e.rs.length} de ${T.length}</td><td class="c tot">${e.total}</td></tr>`).join("")}
+    </table>
+    <p class="small"><b>Liberar</b> solta a cor de um computador (por exemplo, se a equipe trocou de máquina). Os TechCoins da equipe continuam guardados.</p>
+    <p class="small">⚠ = a equipe escolheu abrir a fonte (perdeu 10 TechCoins). Os dados completos ficam na aba "Resultados" da sua planilha.</p>
+  </div>
+  <div class="actions" style="justify-content:space-between">
+    <button class="btn alt" id="sair">Sair do painel</button>
+    <div style="display:flex;gap:12px;flex-wrap:wrap"><button class="btn alt" id="atual">Atualizar agora</button><button class="btn danger" id="zerar">Zerar o jogo</button></div>
+  </div>`;
+  $("#sair").onclick=()=>{ PROF_SENHA=null; clearInterval(timer); ME?telaFila():telaEntrada(); };
+  $("#atual").onclick=recarregarPainel;
+  document.querySelectorAll(".lib").forEach(b=>b.onclick=()=>modal(`<h3>Liberar a cor ${esc(b.dataset.eq)}?</h3><p>O computador que está com essa cor deixa de pontuar por ela, e outro computador poderá entrar como equipe ${esc(b.dataset.eq)}. Os TechCoins já ganhos continuam.</p><div class="actions"><button class="btn alt" data-close>Cancelar</button><button class="btn" id="dolib">Liberar</button></div>`,()=>{
+    $("#dolib").onclick=async()=>{ $("#dolib").disabled=true; try{ await apiPost({acao:"liberar",senha:PROF_SENHA,equipe:b.dataset.eq}); }catch(e){} closeModal(); recarregarPainel(); };
+  }));
+  $("#zerar").onclick=()=>modal(`<h3>Zerar o jogo?</h3><p>Todos os TechCoins e chamados resolvidos das 5 equipes serão apagados da planilha. Não dá para desfazer.</p>
+    <p>Para confirmar, digite <b>ZERAR</b>:</p><label for="cz" class="sr">Confirmação</label><input id="cz" class="txt" autocomplete="off">
+    <div class="actions"><button class="btn alt" data-close>Cancelar</button><button class="btn danger" id="doz" disabled>Zerar tudo</button></div>`,()=>{
+      $("#cz").oninput=()=>{$("#doz").disabled=$("#cz").value.trim().toUpperCase()!=="ZERAR";};
+      $("#doz").onclick=async()=>{ $("#doz").disabled=true; $("#doz").textContent="Zerando...";
+        try{ const r=await apiPost({acao:"zerar",senha:PROF_SENHA}); closeModal(); if(r.ok){ recarregarPainel(); } else modal(`<h3>Não foi possível zerar</h3><p>${esc(r.erro||'')}</p><div class="actions"><button class="btn" data-close>Fechar</button></div>`); }
+        catch(e){ closeModal(); modal(`<h3>Sem conexão</h3><p>Não foi possível falar com a planilha.</p><div class="actions"><button class="btn" data-close>Fechar</button></div>`); }
+      };
+    });
+  timer=setInterval(recarregarPainel,20000);
+}
+async function recarregarPainel(){
+  try{ const r=await apiGet({acao:"painel",senha:PROF_SENHA}); if(r.ok) painel(r.resultados,r.reservas||[]); }catch(e){}
+}
+
+// ---------- modal ----------
+function modal(html,bind){ $("#modal").innerHTML=`<div class="modal" role="dialog" aria-modal="true"><div class="box">${html}</div></div>`; $("#modal").querySelectorAll("[data-close]").forEach(b=>b.onclick=closeModal); $("#modal .modal").onclick=e=>{if(e.target.classList.contains("modal"))closeModal();}; bind&&bind(); }
+function closeModal(){ $("#modal").innerHTML=""; }
+
+// ---------- início ----------
+(async function(){
+  if(ME){ telaFila(); await sincronizar(); if(!R) telaFila(); }
+  else telaEntrada();
+})();
+
+</script>
+</body>
+</html>
